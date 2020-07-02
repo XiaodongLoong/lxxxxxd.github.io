@@ -121,3 +121,72 @@ Solaris平台, 挂载项 对应 'fs' 资源，参考 [zonecfg(1M)][zonecfg.1m] m
     }
 ]
 ```
+
+## <a name="configProcess" />Process
+
+**`process`** (object, OPTIONAL) 指定具体的容器进程.
+当 [`start`](runtime.md#start) 方法调用的时候，这个属性是 REQUIRED
+
+* **`terminal`** (bool, OPTIONAL) 指定一个终端是否attach到这个进程，默认是false
+    比如说,在Linux系统上如果设置为true，一个虚拟终端对被分配出来，slave虚拟终端是这个进程的标准输入 [standard streams][stdin.3]的副本.
+* **`consoleSize`** (object, OPTIONAL) 指定控制台字符大小.
+    如果`terminal` 是 `false`或没有设置，运行时必须忽略`consoleSize` .
+    * **`height`** (uint, REQUIRED)
+    * **`width`** (uint, REQUIRED)
+* **`cwd`** (string, REQUIRED) 可执行文件的工作路径.
+    这个值必须 MUST 是一个绝对路径.
+* **`env`** (array of strings, OPTIONAL) 环境变量，和 [IEEE Std 1003.1-2008's `environ`][ieee-1003.1-2008-xbd-c8.1]具有相似的语义.
+* **`args`** (array of strings, OPTIONAL) 参数，和 [IEEE Std 1003.1-2008 `execvp`'s *argv*][ieee-1003.1-2008-functions-exec]具有相似的语义.
+    这个规范都继承于 IEEE 标准，至少需要（ REQUIRED ）一个执行入口(non-Windows), 并且这个执行入口和 `execvp`的 *file*具有相似的语义规范. 在Windows上这是可选的,如果这个属性被忽略， `commandLine` 是 REQUIRED.
+* **`commandLine`** (string, OPTIONAL) 在windows上指定了要执行的全命令行.
+    在 Windows上，推荐使用这种方式来提供命令行. 如果被忽略，在将系统调用到Windows之前，运行时将退回到转义和连接来自`args`的字段.
+
+### <a name="configPOSIXProcess" />POSIX process
+
+支持 POSIX rlimits的系统， (比如 Linux 和 Solaris),  `process` 对象支持下述的详细进程属性:
+
+* **`rlimits`** (array of objects, OPTIONAL) 允许设置进程的资源限制.
+    每一个项具有如下的结构：
+
+    * **`type`** (string, REQUIRED) 被限制的平台资源.
+        * Linux: valid values are defined in the [`getrlimit(2)`][getrlimit.2] man page, such as `RLIMIT_MSGQUEUE`.
+        * Solaris: valid values are defined in the [`getrlimit(3)`][getrlimit.3] man page, such as `RLIMIT_CORE`.
+
+        对于不能映射到相关的内核接口的值，运行时 MUST产生一个错误 [generate an error](runtime.md#errors).
+        对于 `rlimits`的每一项,  [`getrlimit(3)`][getrlimit.3] 系统调用在 `type` MUST 成功.
+        对于下述的属性, `rlim` 指的是强制的 `getrlimit(3)` 系统调用的返回.
+
+    * **`soft`** (uint64, REQUIRED) 强制限制对应资源的值.
+        `rlim.rlim_cur` MUST 必须与配置的值匹配.
+    * **`hard`** (uint64, REQUIRED) soft 限制所能到的最大值，可以被一个非特权进程设置.
+        `rlim.rlim_max` MUST 必须与配置的值相匹配.
+        只有特权进程 (比如： 配置 `CAP_SYS_RESOURCE` 能力集合) 可以具有 hard limit.
+
+    如果`rlimits` 包含同一个`type`项的冗余副本, 运行时必须 MUST产生一个错误 [generate an error](runtime.md#errors).
+
+### <a name="configLinuxProcess" />Linux Process
+
+对于基于 Linux的系统,  `process` 对象支持下述详细进程属性.
+
+* **`apparmorProfile`** (string, OPTIONAL) 为进程指定 AppArmor profile 文件.
+    更多AppArmor详细信息, 查看 [AppArmor documentation][apparmor].
+* **`capabilities`** (object, OPTIONAL) 指定进程能力集合的对象数组.
+     [capabilities(7)][capabilities.7] man 手册中定义的能力值, 比如 `CAP_CHOWN`.
+    不能映射到相应的内核接口的值必须 MUST 产生一个错误.
+    `capabilities` 包含下述属性:
+
+    * **`effective`** (array of strings, OPTIONAL)  进程持有的有效的能力集.
+    * **`bounding`** (array of strings, OPTIONAL)  进程持有的边界能力集合.
+    * **`inheritable`** (array of strings, OPTIONAL) 进程持有的可继承的能力集.
+    * **`permitted`** (array of strings, OPTIONAL) 进程持有的允许的能力集合
+    * **`ambient`** (array of strings, OPTIONAL) 进程持有的周边能力集合.
+* **`noNewPrivileges`** (bool, OPTIONAL) 防止进程获取另外的权限
+    比如说,  [`no_new_privs`][no-new-privs] linux内核文档有`prctl`系统调用如何实现的信息.
+* **`oomScoreAdj`** *(int, OPTIONAL)* 调整 oom-killer 分数， `[pid]/oom_score_adj` `[pid]`进程的编号， [proc pseudo-filesystem][proc_2].
+    If `oomScoreAdj` is set, the runtime MUST set `oom_score_adj` to the given value.
+    If `oomScoreAdj` is not set, the runtime MUST NOT change the value of `oom_score_adj`.
+
+    This is a per-process setting, where as [`disableOOMKiller`](config-linux.md#memory) is scoped for a memory cgroup.
+    For more information on how these two settings work together, see [the memory cgroup documentation section 10. OOM Contol][cgroup-v1-memory_2].
+* **`selinuxLabel`** (string, OPTIONAL) specifies the SELinux label for the process.
+    For more information about SELinux, see  [SELinux documentation][selinux].
