@@ -396,15 +396,24 @@ _Note: uid 和gid 的符号名称, 比如uname 和 gname,分别留给上层推�
         * The `poststop` hooks MUST be executed in the [runtime namespace](glossary.md#runtime-namespace).
 
 钩子允许用户在各种生命周期事件前后执行特定的程序.
+
 调用钩子MUST 必须以下列顺序进行.
+
 容器的状态 [state](runtime.md#state)  MUST 必须在标准输入流上传递给钩子，这样他们才能根据当前容器的状态做出合适的工作.
 
 ### <a name="configHooksPrestart" />Prestart
 
-The `prestart` hooks MUST be called after the [`start`](runtime.md#start) operation is called but [before the user-specified program command is executed](runtime.md#lifecycle).在标准方法`start`之后，在用户定义的命令行程序执行之前.
-On Linux, for example, they are called after the container namespaces are created, so they provide an opportunity to customize the container (e.g. the network namespace could be specified in this hook).Linux上，在容器的命名空间创建之前调用，这样才能提供一个自动定义容器的机会.比如，网络命名空间可以用这个钩子来指定。
+The `prestart` hooks MUST be called after the [`start`](runtime.md#start) operation is called but [before the user-specified program command is executed](runtime.md#lifecycle).
 
-Note: `prestart` hooks were deprecated in favor of `createRuntime`, `createContainer` and `startContainer` hooks, which allow more granular hook control during the create and start phase.prestart 钩子已经过时，更乐于推荐`createRuntime`,`createContainer`和`startContainer`钩子，这些钩子可以在创建和启动的prestart相位上提供更细粒度的控制
+在标准方法`start`之后，在用户定义的命令行程序执行之前.
+
+On Linux, for example, they are called after the container namespaces are created, so they provide an opportunity to customize the container (e.g. the network namespace could be specified in this hook).
+
+Linux上，在容器的命名空间创建之前调用，这样才能提供一个自动定义容器的机会.比如，网络命名空间可以用这个钩子来指定。
+
+Note: `prestart` hooks were deprecated in favor of `createRuntime`, `createContainer` and `startContainer` hooks, which allow more granular hook control during the create and start phase.prestart 
+
+钩子已经过时，更乐于推荐`createRuntime`,`createContainer`和`startContainer`钩子，这些钩子可以在创建和启动的prestart相位上提供更细粒度的控制
 
 The `prestart` hooks' path MUST resolve in the [runtime namespace](glossary.md#runtime-namespace).
 The `prestart` hooks MUST be executed in the [runtime namespace](glossary.md#runtime-namespace).
@@ -419,31 +428,41 @@ The `createRuntime` hooks MUST be executed in the [runtime namespace](glossary.m
 On Linux, for example, they are called after the container namespaces are created, so they provide an opportunity to customize the container (e.g. the network namespace could be specified in this hook).
 
 The definition of `createRuntime` hooks is currently underspecified and hooks authors, should only expect from the runtime that the mount namespace have been created and the mount operations performed. Other operations such as cgroups and SELinux/AppArmor labels might not have been performed by the runtime.
+
 定义规范不足，命名空间已经绑定完成，其他的cgroup和SELinux/AppArmor标签还没有被运行时执行.
 
 Note: `runc` originally implemented `prestart` hooks contrary to the spec, namely as part of the `create` operation (instead of during the `start` operation). This incorrect implementation actually corresponds to `createRuntime` hooks. For runtimes that implement the deprecated `prestart` hooks as `createRuntime` hooks, `createRuntime` hooks MUST be called after the `prestart` hooks.
+
 runc原始实现了`prestart`钩子，命名作为create操作的一部分，与其命名相反，在start阶段执行操作。
+
 这种错误的实现事实上与`createRuntime`钩子对应，对于实现了过时的`prestart`钩子的运行时，`createRuntime`钩子必须在`prestart`之后调用
 
 ### <a name="configHooksCreateContainer" />CreateContainer Hooks 
 
 The `createContainer` hooks MUST be called as part of the [`create`](runtime.md#create) operation after the runtime environment has been created (according to the configuration in config.json) but before the `pivot_root` or any equivalent operation has been executed.
+
 在运行时创建了环境变量后，必须作为`create`一部分，但是在 `pivot_root`或者任何其他的同等操作执行之后
+
 The `createContainer` hooks MUST be called after the `createRuntime` hooks.
+
 必须在`createRuntime`之后
+
 The `createContainer` hooks' path MUST resolve in the [runtime namespace](glossary.md#runtime-namespace).
 The `createContainer` hooks MUST be executed in the [container namespace](glossary.md#container-namespace).
 
 For example, on Linux this would happen before the `pivot_root` operation is executed but after the mount namespace was created and setup.
+
 pivot_root之前，在命名空间绑定之后
 
 The definition of `createContainer` hooks is currently underspecified and hooks authors, should only expect from the runtime that the mount namespace and different mounts will be setup. Other operations such as cgroups and SELinux/AppArmor labels might not have been performed by the runtime.
+
 定义规范不足，命名空间已经绑定完成，其他的cgroup和SELinux/AppArmor标签还没有被运行时执行.
 
 ### <a name="configHooksStartContainer" />StartContainer Hooks
 
 The `startContainer` hooks MUST be called [before the user-specified process is executed](runtime.md#lifecycle) as part of the [`start`](runtime.md#start) operation.
 This hook can be used to execute some operations in the container, for example running the `ldconfig` binary on linux before the container process is spawned.
+
 这个钩子被用来在容器里执行一些操作，比如在linux上容器产生之前运行`ldconfig`二进制
 
 The `startContainer` hooks' path MUST resolve in the [container namespace](glossary.md#container-namespace).
@@ -452,8 +471,11 @@ The `startContainer` hooks MUST be executed in the [container namespace](glossar
 ### <a name="configHooksPoststart" />Poststart
 
 The `poststart` hooks MUST be called [after the user-specified process is executed](runtime.md#lifecycle) but before the [`start`](runtime.md#start) operation returns.
+
 在start操作返回之前，在用户定义的进程被拉起后
+
 For example, this hook can notify the user that the container process is spawned.
+
 通知用户容器进程产生了
 
 The `poststart` hooks' path MUST resolve in the [runtime namespace](glossary.md#runtime-namespace).
@@ -463,6 +485,8 @@ The `poststart` hooks MUST be executed in the [runtime namespace](glossary.md#ru
 
 The `poststop` hooks MUST be called [after the container is deleted](runtime.md#lifecycle) but before the [`delete`](runtime.md#delete) operation returns.
 Cleanup or debugging functions are examples of such a hook.
+
 在容器删除之后，在delete操作返回前
+
 The `poststop` hooks' path MUST resolve in the [runtime namespace](glossary.md#runtime-namespace).
 The `poststop` hooks MUST be executed in the [runtime namespace](glossary.md#runtime-namespace).
