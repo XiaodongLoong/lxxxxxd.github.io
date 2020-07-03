@@ -290,4 +290,179 @@ _Note: uid 和gid 的符号名称, 比如uname 和 gname,分别留给上层推�
     ]
 }
 ```
-    
+
+#### <a name="configWindowsUser" />Windows 用户
+
+对于基于Windows的系统，user结构具有如下的属性：
+
+* **`username`** (string, OPTIONAL) 为进程指定了用户名.
+
+### Example (Windows)
+
+```json
+"process": {
+    "terminal": true,
+    "user": {
+        "username": "containeradministrator"
+    },
+    "env": [
+        "VARIABLE=1"
+    ],
+    "cwd": "c:\\foo",
+    "args": [
+        "someapp.exe",
+    ]
+}
+```
+
+
+## <a name="configHostname" />Hostname 主机名称
+
+* **`hostname`** (string, OPTIONAL) 指定容器内进程运行可见的容器主机名称.
+    在Linux上, 举个例子， 这个会改变容器内的主机名称，uts 命名空间 [container](glossary.md#container-namespace) [UTS namespace][uts-namespace.7].
+    依赖命名空间配置 [namespace configuration](config-linux.md#namespaces), 容器 UTS 命名空间可能是 [runtime](glossary.md#runtime-namespace) [UTS namespace][uts-namespace.7].
+
+### Example
+
+```json
+"hostname": "mrsdalloway"
+```
+
+## <a name="configPlatformSpecificConfiguration" />Platform-specific configuration 平台相关配置
+
+* **`linux`** (object, OPTIONAL) [Linux-specific configuration](config-linux.md).
+    This MAY be set if the target platform of this spec is `linux`.
+* **`windows`** (object, OPTIONAL) [Windows-specific configuration](config-windows.md).
+    This MUST be set if the target platform of this spec is `windows`.
+* **`solaris`** (object, OPTIONAL) [Solaris-specific configuration](config-solaris.md).
+    This MAY be set if the target platform of this spec is `solaris`.
+* **`vm`** (object, OPTIONAL) [Virtual-machine-specific configuration](config-vm.md).
+    This MAY be set if the target platform and architecture of this spec support hardware virtualization.
+
+### Example (Linux)
+
+```json
+{
+    "linux": {
+        "namespaces": [
+            {
+                "type": "pid"
+            }
+        ]
+    }
+}
+```
+
+## <a name="configHooks" />POSIX-platform Hooks POSIX平台钩子
+
+对于POSIX平台, 配置结构支持 `hooks`，用于配置自定义的与容器生命周期相关的动作[lifecycle](runtime.md#lifecycle).
+
+* **`hooks`** (object, OPTIONAL) MAY 包含如下的属性:
+    * **`prestart`** (array of objects, OPTIONAL, **DEPRECATED**) 是一组 [`prestart` hooks](#prestart)钩子.
+        * Entries in the array contain the following properties 数组项中包含下列属性:
+            * **`path`** (string, REQUIRED) 与 [IEEE Std 1003.1-2008 `execv`'s *path*][ieee-1003.1-2008-functions-exec]语义相似.
+                这个规范继承了 IEEE 标准， **`path`** MUST 必须是绝对路径.
+            * **`args`** (array of strings, OPTIONAL) 和 [IEEE Std 1003.1-2008 `execv`'s *argv*][ieee-1003.1-2008-functions-exec]标准具有相似语义.
+            * **`env`** (array of strings, OPTIONAL) 和 [IEEE Std 1003.1-2008's `environ`][ieee-1003.1-2008-xbd-c8.1]标准具有相似语义.
+            * **`timeout`** (int, OPTIONAL) 在钩子执行终止前的秒数.
+                一旦设置, `timeout` MUST 一定要大于0.
+        * `path`值 MUST 依据 [runtime namespace](glossary.md#runtime-namespace)能够解析.
+        * `prestart` 钩子 MUST 能在 [runtime namespace](glossary.md#runtime-namespace)执行.
+    * **`createRuntime`** (array of objects, OPTIONAL) 一组创建运行时钩子 [`createRuntime` hooks](#createRuntime-hooks).
+        * 数组中的实体包含下述的属性 (和过时的`prestart`具有相同的属性):
+            * **`path`** (string, REQUIRED) 与 [IEEE Std 1003.1-2008 `execv`'s *path*][ieee-1003.1-2008-functions-exec]语义相似.
+                这个规范继承了 IEEE 标准， **`path`** MUST 必须是绝对路径.
+            * **`args`** (array of strings, OPTIONAL) 和 [IEEE Std 1003.1-2008 `execv`'s *argv*][ieee-1003.1-2008-functions-exec]标准具有相似语义.
+            * **`env`** (array of strings, OPTIONAL) 和 [IEEE Std 1003.1-2008's `environ`][ieee-1003.1-2008-xbd-c8.1]标准具有相似语义.
+            * **`timeout`** (int, OPTIONAL) 在钩子执行终止前的秒数.
+                一旦设置, `timeout` MUST 一定要大于0.
+        * path`值 MUST 依据 [runtime namespace](glossary.md#runtime-namespace)能够解析.
+        * `createRuntime` 钩子 MUST 能在 [runtime namespace](glossary.md#runtime-namespace)执行.
+    * **`createContainer`** (array of objects, OPTIONAL) is an array of [`createContainer` hooks](#createContainer-hooks).
+        * Entries in the array have the same schema as `createRuntime` entries，与createRuntime相同.
+        * The value of `path` MUST resolve in the [runtime namespace](glossary.md#runtime-namespace).
+        * The `createContainer` hooks MUST be executed in the [container namespace](glossary.md#container-namespace).
+    * **`startContainer`** (array of objects, OPTIONAL) is an array of [`startContainer` hooks](#startContainer-hooks).
+        * Entries in the array have the same schema as `createRuntime` entries.与createRuntime相同
+        * The value of `path` MUST resolve in the [container namespace](glossary.md#container-namespace).
+        * The `startContainer` hooks MUST be executed in the [container namespace](glossary.md#container-namespace).
+    * **`poststart`** (array of objects, OPTIONAL) is an array of [`poststart` hooks](#poststart).
+        * Entries in the array have the same schema as `createRuntime` entries.与createRuntime相同
+        * The value of `path` MUST resolve in the [runtime namespace](glossary.md#runtime-namespace).
+        * The `poststart` hooks MUST be executed in the [runtime namespace](glossary.md#runtime-namespace).
+    * **`poststop`** (array of objects, OPTIONAL) is an array of [`poststop` hooks](#poststop).
+        * Entries in the array have the same schema as `createRuntime` entries.与createRuntime相同
+        * The value of `path` MUST resolve in the [runtime namespace](glossary.md#runtime-namespace).
+        * The `poststop` hooks MUST be executed in the [runtime namespace](glossary.md#runtime-namespace).
+
+钩子允许用户在各种生命周期事件前后执行特定的程序.
+调用钩子MUST 必须以下列顺序进行.
+容器的状态 [state](runtime.md#state)  MUST 必须在标准输入流上传递给钩子，这样他们才能根据当前容器的状态做出合适的工作.
+
+### <a name="configHooksPrestart" />Prestart
+
+The `prestart` hooks MUST be called after the [`start`](runtime.md#start) operation is called but [before the user-specified program command is executed](runtime.md#lifecycle).在标准方法`start`之后，在用户定义的命令行程序执行之前.
+On Linux, for example, they are called after the container namespaces are created, so they provide an opportunity to customize the container (e.g. the network namespace could be specified in this hook).Linux上，在容器的命名空间创建之前调用，这样才能提供一个自动定义容器的机会.比如，网络命名空间可以用这个钩子来指定。
+
+Note: `prestart` hooks were deprecated in favor of `createRuntime`, `createContainer` and `startContainer` hooks, which allow more granular hook control during the create and start phase.prestart 钩子已经过时，更乐于推荐`createRuntime`,`createContainer`和`startContainer`钩子，这些钩子可以在创建和启动的prestart相位上提供更细粒度的控制
+
+The `prestart` hooks' path MUST resolve in the [runtime namespace](glossary.md#runtime-namespace).
+The `prestart` hooks MUST be executed in the [runtime namespace](glossary.md#runtime-namespace).
+
+### <a name="configHooksCreateRuntime" />CreateRuntime Hooks
+
+The `createRuntime` hooks MUST be called as part of the [`create`](runtime.md#create) operation after the runtime environment has been created (according to the configuration in config.json) but before the `pivot_root` or any equivalent operation has been executed.作为create标准操作的一部分，在运行时环境变量被创建之后调用。
+
+The `createRuntime` hooks' path MUST resolve in the [runtime namespace](glossary.md#runtime-namespace).
+The `createRuntime` hooks MUST be executed in the [runtime namespace](glossary.md#runtime-namespace).
+
+On Linux, for example, they are called after the container namespaces are created, so they provide an opportunity to customize the container (e.g. the network namespace could be specified in this hook).
+
+The definition of `createRuntime` hooks is currently underspecified and hooks authors, should only expect from the runtime that the mount namespace have been created and the mount operations performed. Other operations such as cgroups and SELinux/AppArmor labels might not have been performed by the runtime.
+定义规范不足，命名空间已经绑定完成，其他的cgroup和SELinux/AppArmor标签还没有被运行时执行.
+
+Note: `runc` originally implemented `prestart` hooks contrary to the spec, namely as part of the `create` operation (instead of during the `start` operation). This incorrect implementation actually corresponds to `createRuntime` hooks. For runtimes that implement the deprecated `prestart` hooks as `createRuntime` hooks, `createRuntime` hooks MUST be called after the `prestart` hooks.
+runc原始实现了`prestart`钩子，命名作为create操作的一部分，与其命名相反，在start阶段执行操作。
+这种错误的实现事实上与`createRuntime`钩子对应，对于实现了过时的`prestart`钩子的运行时，`createRuntime`钩子必须在`prestart`之后调用
+
+### <a name="configHooksCreateContainer" />CreateContainer Hooks 
+
+The `createContainer` hooks MUST be called as part of the [`create`](runtime.md#create) operation after the runtime environment has been created (according to the configuration in config.json) but before the `pivot_root` or any equivalent operation has been executed.
+在运行时创建了环境变量后，必须作为`create`一部分，但是在 `pivot_root`或者任何其他的同等操作执行之后
+The `createContainer` hooks MUST be called after the `createRuntime` hooks.
+必须在`createRuntime`之后
+The `createContainer` hooks' path MUST resolve in the [runtime namespace](glossary.md#runtime-namespace).
+The `createContainer` hooks MUST be executed in the [container namespace](glossary.md#container-namespace).
+
+For example, on Linux this would happen before the `pivot_root` operation is executed but after the mount namespace was created and setup.
+pivot_root之前，在命名空间绑定之后
+
+The definition of `createContainer` hooks is currently underspecified and hooks authors, should only expect from the runtime that the mount namespace and different mounts will be setup. Other operations such as cgroups and SELinux/AppArmor labels might not have been performed by the runtime.
+定义规范不足，命名空间已经绑定完成，其他的cgroup和SELinux/AppArmor标签还没有被运行时执行.
+
+### <a name="configHooksStartContainer" />StartContainer Hooks
+
+The `startContainer` hooks MUST be called [before the user-specified process is executed](runtime.md#lifecycle) as part of the [`start`](runtime.md#start) operation.
+This hook can be used to execute some operations in the container, for example running the `ldconfig` binary on linux before the container process is spawned.
+这个钩子被用来在容器里执行一些操作，比如在linux上容器产生之前运行`ldconfig`二进制
+
+The `startContainer` hooks' path MUST resolve in the [container namespace](glossary.md#container-namespace).
+The `startContainer` hooks MUST be executed in the [container namespace](glossary.md#container-namespace).
+
+### <a name="configHooksPoststart" />Poststart
+
+The `poststart` hooks MUST be called [after the user-specified process is executed](runtime.md#lifecycle) but before the [`start`](runtime.md#start) operation returns.
+在start操作返回之前，在用户定义的进程被拉起后
+For example, this hook can notify the user that the container process is spawned.
+通知用户容器进程产生了
+
+The `poststart` hooks' path MUST resolve in the [runtime namespace](glossary.md#runtime-namespace).
+The `poststart` hooks MUST be executed in the [runtime namespace](glossary.md#runtime-namespace).
+
+### <a name="configHooksPoststop" />Poststop
+
+The `poststop` hooks MUST be called [after the container is deleted](runtime.md#lifecycle) but before the [`delete`](runtime.md#delete) operation returns.
+Cleanup or debugging functions are examples of such a hook.
+在容器删除之后，在delete操作返回前
+The `poststop` hooks' path MUST resolve in the [runtime namespace](glossary.md#runtime-namespace).
+The `poststop` hooks MUST be executed in the [runtime namespace](glossary.md#runtime-namespace).
