@@ -183,10 +183,111 @@ Solaris平台, 挂载项 对应 'fs' 资源，参考 [zonecfg(1M)][zonecfg.1m] m
 * **`noNewPrivileges`** (bool, OPTIONAL) 防止进程获取另外的权限
     比如说,  [`no_new_privs`][no-new-privs] linux内核文档有`prctl`系统调用如何实现的信息.
 * **`oomScoreAdj`** *(int, OPTIONAL)* 调整 oom-killer 分数， `[pid]/oom_score_adj` `[pid]`进程的编号， [proc pseudo-filesystem][proc_2].
-    If `oomScoreAdj` is set, the runtime MUST set `oom_score_adj` to the given value.
-    If `oomScoreAdj` is not set, the runtime MUST NOT change the value of `oom_score_adj`.
+    一旦`oomScoreAdj`设置, 运行时必须 MUST 设置 `oom_score_adj`为给定的值.
+    一旦`oomScoreAdj` 设置, 运行时不必 MUST NOT 改变 `oom_score_adj`的值.
 
-    This is a per-process setting, where as [`disableOOMKiller`](config-linux.md#memory) is scoped for a memory cgroup.
-    For more information on how these two settings work together, see [the memory cgroup documentation section 10. OOM Contol][cgroup-v1-memory_2].
-* **`selinuxLabel`** (string, OPTIONAL) specifies the SELinux label for the process.
-    For more information about SELinux, see  [SELinux documentation][selinux].
+    这是对每一个进程都进行设置的, 如 [`disableOOMKiller`](config-linux.md#memory) 所示，是memory cgroup的范围.
+    更多关于这两个设置一起工作的信息，见 [the memory cgroup documentation section 10. OOM Contol][cgroup-v1-memory_2].
+* **`selinuxLabel`** (string, OPTIONAL) 为进程指定 SELinux 标签.
+    更多关于SELinux信息, 见 [SELinux documentation][selinux].
+    
+    ### <a name="configUser" />用户
+
+进程的用户是一个平台相关的结构，允许特定控制进程以什么用户运行.
+
+#### <a name="configPOSIXUser" />POSIX-platform User
+
+对于POSIX 平台， `user`结构具有如下的属性:
+
+* **`uid`** (int, REQUIRED) 指定用户的唯一标识，见 [container namespace](glossary.md#container-namespace).
+* **`gid`** (int, REQUIRED) 指定用户组唯一标识，见 [container namespace](glossary.md#container-namespace).
+* **`umask`** (int, OPTIONAL) 指定用户的 [umask][umask_2] .如果不指定，umask不应该从调用进程被改变 .
+* **`additionalGids`** (array of ints, OPTIONAL) 指定附加的用户组ID（会添加到进程），见 [container namespace](glossary.md#container-namespace).
+
+_Note: uid 和gid 的符号名称, 比如uname 和 gname,分别留给上层推导 (比如. `/etc/passwd` 解析, NSS, 等)_
+
+### Example (Linux)
+
+```json
+"process": {
+    "terminal": true,
+    "consoleSize": {
+        "height": 25,
+        "width": 80
+    },
+    "user": {
+        "uid": 1,
+        "gid": 1,
+        "umask": 63,
+        "additionalGids": [5, 6]
+    },
+    "env": [
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "TERM=xterm"
+    ],
+    "cwd": "/root",
+    "args": [
+        "sh"
+    ],
+    "apparmorProfile": "acme_secure_profile",
+    "selinuxLabel": "system_u:system_r:svirt_lxc_net_t:s0:c124,c675",
+    "noNewPrivileges": true,
+    "capabilities": {
+        "bounding": [
+            "CAP_AUDIT_WRITE",
+            "CAP_KILL",
+            "CAP_NET_BIND_SERVICE"
+        ],
+       "permitted": [
+            "CAP_AUDIT_WRITE",
+            "CAP_KILL",
+            "CAP_NET_BIND_SERVICE"
+        ],
+       "inheritable": [
+            "CAP_AUDIT_WRITE",
+            "CAP_KILL",
+            "CAP_NET_BIND_SERVICE"
+        ],
+        "effective": [
+            "CAP_AUDIT_WRITE",
+            "CAP_KILL"
+        ],
+        "ambient": [
+            "CAP_NET_BIND_SERVICE"
+        ]
+    },
+    "rlimits": [
+        {
+            "type": "RLIMIT_NOFILE",
+            "hard": 1024,
+            "soft": 1024
+        }
+    ]
+}
+```
+### Example (Solaris)
+
+```json
+"process": {
+    "terminal": true,
+    "consoleSize": {
+        "height": 25,
+        "width": 80
+    },
+    "user": {
+        "uid": 1,
+        "gid": 1,
+        "umask": 7,
+        "additionalGids": [2, 8]
+    },
+    "env": [
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "TERM=xterm"
+    ],
+    "cwd": "/root",
+    "args": [
+        "/usr/bin/bash"
+    ]
+}
+```
+    
