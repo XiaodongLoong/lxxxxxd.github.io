@@ -490,3 +490,513 @@ Cleanup or debugging functions are examples of such a hook.
 
 The `poststop` hooks' path MUST resolve in the [runtime namespace](glossary.md#runtime-namespace).
 The `poststop` hooks MUST be executed in the [runtime namespace](glossary.md#runtime-namespace).
+
+### Summary 总结
+
+See the below table for a summary of hooks and when they are called:
+
+| Name  | Namespace    |                                                         When                                                                    |
+| ---------------------| ------------ | -----------------------------------------------------------------------------------------------------------------|
+| `prestart` ( 过时的 )    | runtime   | 在start操作之后调用，在用户定义的命令行程序执行之前                                                                      |
+| `createRuntime`         | runtime   | create操作期间,在创建运行时环境之后，在pivot root或者其他的等效操作之前                                                    |
+| `createContainer`       | container | create操作期间,在创建运行时环境之后，在pivot root或者其他的等效操作之前                                                    |
+| `startContainer`        | container | 在start操作之后调用，在用户定义的命令行程序执行之前                                                                       |
+| `poststart`             | runtime   | 在用户定义的进程执行之后，在start操作返回之前                                                                            |
+| `poststop`              | runtime   | 在删除容器操作发出之后，但在删除操作执行返回之前                                                                          |
+
+### Example
+
+```json
+"hooks": {
+    "prestart": [
+        {
+            "path": "/usr/bin/fix-mounts",
+            "args": ["fix-mounts", "arg1", "arg2"],
+            "env":  [ "key1=value1"]
+        },
+        {
+            "path": "/usr/bin/setup-network"
+        }
+    ],
+    "createRuntime": [
+        {
+            "path": "/usr/bin/fix-mounts",
+            "args": ["fix-mounts", "arg1", "arg2"],
+            "env":  [ "key1=value1"]
+        },
+        {
+            "path": "/usr/bin/setup-network"
+        }
+    ],
+    "createContainer": [
+        {
+            "path": "/usr/bin/mount-hook",
+            "args": ["-mount", "arg1", "arg2"],
+            "env":  [ "key1=value1"]
+        }
+    ],
+    "startContainer": [
+        {
+            "path": "/usr/bin/refresh-ldcache"
+        }
+    ],
+    "poststart": [
+        {
+            "path": "/usr/bin/notify-start",
+            "timeout": 5
+        }
+    ],
+    "poststop": [
+        {
+            "path": "/usr/sbin/cleanup.sh",
+            "args": ["cleanup.sh", "-f"]
+        }
+    ]
+}
+```
+## <a name="configAnnotations" />Annotations 注解
+
+**`annotations`** (object, OPTIONAL) 包含容器任意的元数据.
+This information MAY be structured or unstructured.
+这些信息可能是结构化的或者非结构化的
+Annotations MUST be a key-value map.
+注解必须是一个键值对映射表
+If there are no annotations then this property MAY either be absent or an empty map.
+如果没有主机，这个属性可以不存在或者是一个空的映射表
+Keys MUST be strings.
+键必须是字符串
+Keys MUST NOT be an empty string.
+键必须不是空字符串
+Keys SHOULD be named using a reverse domain notation - e.g. `com.example.myKey`.
+键应该使用反向的域名符号表示
+Keys using the `org.opencontainers` namespace are reserved and MUST NOT be used by subsequent specifications.
+`org.opencontainers`是保留的，不能使用这个作为键
+Runtimes MUST handle unknown annotation keys like any other [unknown property](#extensibility).
+运行时必须处理unknown的键，比如扩展中描述的unknown 属性
+
+Values MUST be strings.
+值必须是字符串
+Values MAY be an empty string.
+值可以是一个空的字符串
+
+```json
+"annotations": {
+    "com.example.gpu-cores": "2"
+}
+```
+
+## <a name="configExtensibility" />Extensibility 扩展性
+
+Runtimes MAY [log](runtime.md#warnings) unknown properties but MUST otherwise ignore them.
+运行时不知道的属性日志输出告警，但是必须以其他的方式忽略它们
+That includes not [generating errors](runtime.md#errors) if they encounter an unknown property.
+如果遇到一个unknown的属性，不产生运行时错误
+
+## Valid values 有效值
+
+Runtimes MUST generate an error when invalid or unsupported values are encountered.
+遇到不支持的或者无效值，运行时必须产生一个错误
+Unless support for a valid value is explicitly required, runtimes MAY choose which subset of the valid values it will support.
+除非显式一个有效值支持的需要，运行时可以选自它支持的有效值的集合
+
+## Configuration Schema Example 
+
+Here is a full example `config.json` for reference.
+
+```json
+{
+    "ociVersion": "1.0.1",
+    "process": {
+        "terminal": true,
+        "user": {
+            "uid": 1,
+            "gid": 1,
+            "additionalGids": [
+                5,
+                6
+            ]
+        },
+        "args": [
+            "sh"
+        ],
+        "env": [
+            "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+            "TERM=xterm"
+        ],
+        "cwd": "/",
+        "capabilities": {
+            "bounding": [
+                "CAP_AUDIT_WRITE",
+                "CAP_KILL",
+                "CAP_NET_BIND_SERVICE"
+            ],
+            "permitted": [
+                "CAP_AUDIT_WRITE",
+                "CAP_KILL",
+                "CAP_NET_BIND_SERVICE"
+            ],
+            "inheritable": [
+                "CAP_AUDIT_WRITE",
+                "CAP_KILL",
+                "CAP_NET_BIND_SERVICE"
+            ],
+            "effective": [
+                "CAP_AUDIT_WRITE",
+                "CAP_KILL"
+            ],
+            "ambient": [
+                "CAP_NET_BIND_SERVICE"
+            ]
+        },
+        "rlimits": [
+            {
+                "type": "RLIMIT_CORE",
+                "hard": 1024,
+                "soft": 1024
+            },
+            {
+                "type": "RLIMIT_NOFILE",
+                "hard": 1024,
+                "soft": 1024
+            }
+        ],
+        "apparmorProfile": "acme_secure_profile",
+        "oomScoreAdj": 100,
+        "selinuxLabel": "system_u:system_r:svirt_lxc_net_t:s0:c124,c675",
+        "noNewPrivileges": true
+    },
+    "root": {
+        "path": "rootfs",
+        "readonly": true
+    },
+    "hostname": "slartibartfast",
+    "mounts": [
+        {
+            "destination": "/proc",
+            "type": "proc",
+            "source": "proc"
+        },
+        {
+            "destination": "/dev",
+            "type": "tmpfs",
+            "source": "tmpfs",
+            "options": [
+                "nosuid",
+                "strictatime",
+                "mode=755",
+                "size=65536k"
+            ]
+        },
+        {
+            "destination": "/dev/pts",
+            "type": "devpts",
+            "source": "devpts",
+            "options": [
+                "nosuid",
+                "noexec",
+                "newinstance",
+                "ptmxmode=0666",
+                "mode=0620",
+                "gid=5"
+            ]
+        },
+        {
+            "destination": "/dev/shm",
+            "type": "tmpfs",
+            "source": "shm",
+            "options": [
+                "nosuid",
+                "noexec",
+                "nodev",
+                "mode=1777",
+                "size=65536k"
+            ]
+        },
+        {
+            "destination": "/dev/mqueue",
+            "type": "mqueue",
+            "source": "mqueue",
+            "options": [
+                "nosuid",
+                "noexec",
+                "nodev"
+            ]
+        },
+        {
+            "destination": "/sys",
+            "type": "sysfs",
+            "source": "sysfs",
+            "options": [
+                "nosuid",
+                "noexec",
+                "nodev"
+            ]
+        },
+        {
+            "destination": "/sys/fs/cgroup",
+            "type": "cgroup",
+            "source": "cgroup",
+            "options": [
+                "nosuid",
+                "noexec",
+                "nodev",
+                "relatime",
+                "ro"
+            ]
+        }
+    ],
+    "hooks": {
+        "prestart": [
+            {
+                "path": "/usr/bin/fix-mounts",
+                "args": [
+                    "fix-mounts",
+                    "arg1",
+                    "arg2"
+                ],
+                "env": [
+                    "key1=value1"
+                ]
+            },
+            {
+                "path": "/usr/bin/setup-network"
+            }
+        ],
+        "poststart": [
+            {
+                "path": "/usr/bin/notify-start",
+                "timeout": 5
+            }
+        ],
+        "poststop": [
+            {
+                "path": "/usr/sbin/cleanup.sh",
+                "args": [
+                    "cleanup.sh",
+                    "-f"
+                ]
+            }
+        ]
+    },
+    "linux": {
+        "devices": [
+            {
+                "path": "/dev/fuse",
+                "type": "c",
+                "major": 10,
+                "minor": 229,
+                "fileMode": 438,
+                "uid": 0,
+                "gid": 0
+            },
+            {
+                "path": "/dev/sda",
+                "type": "b",
+                "major": 8,
+                "minor": 0,
+                "fileMode": 432,
+                "uid": 0,
+                "gid": 0
+            }
+        ],
+        "uidMappings": [
+            {
+                "containerID": 0,
+                "hostID": 1000,
+                "size": 32000
+            }
+        ],
+        "gidMappings": [
+            {
+                "containerID": 0,
+                "hostID": 1000,
+                "size": 32000
+            }
+        ],
+        "sysctl": {
+            "net.ipv4.ip_forward": "1",
+            "net.core.somaxconn": "256"
+        },
+        "cgroupsPath": "/myRuntime/myContainer",
+        "resources": {
+            "network": {
+                "classID": 1048577,
+                "priorities": [
+                    {
+                        "name": "eth0",
+                        "priority": 500
+                    },
+                    {
+                        "name": "eth1",
+                        "priority": 1000
+                    }
+                ]
+            },
+            "pids": {
+                "limit": 32771
+            },
+            "hugepageLimits": [
+                {
+                    "pageSize": "2MB",
+                    "limit": 9223372036854772000
+                },
+                {
+                    "pageSize": "64KB",
+                    "limit": 1000000
+                }
+            ],
+            "memory": {
+                "limit": 536870912,
+                "reservation": 536870912,
+                "swap": 536870912,
+                "kernel": -1,
+                "kernelTCP": -1,
+                "swappiness": 0,
+                "disableOOMKiller": false
+            },
+            "cpu": {
+                "shares": 1024,
+                "quota": 1000000,
+                "period": 500000,
+                "realtimeRuntime": 950000,
+                "realtimePeriod": 1000000,
+                "cpus": "2-3",
+                "mems": "0-7"
+            },
+            "devices": [
+                {
+                    "allow": false,
+                    "access": "rwm"
+                },
+                {
+                    "allow": true,
+                    "type": "c",
+                    "major": 10,
+                    "minor": 229,
+                    "access": "rw"
+                },
+                {
+                    "allow": true,
+                    "type": "b",
+                    "major": 8,
+                    "minor": 0,
+                    "access": "r"
+                }
+            ],
+            "blockIO": {
+                "weight": 10,
+                "leafWeight": 10,
+                "weightDevice": [
+                    {
+                        "major": 8,
+                        "minor": 0,
+                        "weight": 500,
+                        "leafWeight": 300
+                    },
+                    {
+                        "major": 8,
+                        "minor": 16,
+                        "weight": 500
+                    }
+                ],
+                "throttleReadBpsDevice": [
+                    {
+                        "major": 8,
+                        "minor": 0,
+                        "rate": 600
+                    }
+                ],
+                "throttleWriteIOPSDevice": [
+                    {
+                        "major": 8,
+                        "minor": 16,
+                        "rate": 300
+                    }
+                ]
+            }
+        },
+        "rootfsPropagation": "slave",
+        "seccomp": {
+            "defaultAction": "SCMP_ACT_ALLOW",
+            "architectures": [
+                "SCMP_ARCH_X86",
+                "SCMP_ARCH_X32"
+            ],
+            "syscalls": [
+                {
+                    "names": [
+                        "getcwd",
+                        "chmod"
+                    ],
+                    "action": "SCMP_ACT_ERRNO"
+                }
+            ]
+        },
+        "namespaces": [
+            {
+                "type": "pid"
+            },
+            {
+                "type": "network"
+            },
+            {
+                "type": "ipc"
+            },
+            {
+                "type": "uts"
+            },
+            {
+                "type": "mount"
+            },
+            {
+                "type": "user"
+            },
+            {
+                "type": "cgroup"
+            }
+        ],
+        "maskedPaths": [
+            "/proc/kcore",
+            "/proc/latency_stats",
+            "/proc/timer_stats",
+            "/proc/sched_debug"
+        ],
+        "readonlyPaths": [
+            "/proc/asound",
+            "/proc/bus",
+            "/proc/fs",
+            "/proc/irq",
+            "/proc/sys",
+            "/proc/sysrq-trigger"
+        ],
+        "mountLabel": "system_u:object_r:svirt_sandbox_file_t:s0:c715,c811"
+    },
+    "annotations": {
+        "com.example.key1": "value1",
+        "com.example.key2": "value2"
+    }
+}
+```
+
+
+[apparmor]: https://wiki.ubuntu.com/AppArmor
+[cgroup-v1-memory_2]: https://www.kernel.org/doc/Documentation/cgroup-v1/memory.txt
+[selinux]:http://selinuxproject.org/page/Main_Page
+[no-new-privs]: https://www.kernel.org/doc/Documentation/prctl/no_new_privs.txt
+[proc_2]: https://www.kernel.org/doc/Documentation/filesystems/proc.txt
+[umask.2]: http://pubs.opengroup.org/onlinepubs/009695399/functions/umask.html
+[semver-v2.0.0]: http://semver.org/spec/v2.0.0.html
+[ieee-1003.1-2008-xbd-c8.1]: http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap08.html#tag_08_01
+[ieee-1003.1-2008-functions-exec]: http://pubs.opengroup.org/onlinepubs/9699919799/functions/exec.html
+[naming-a-volume]: https://aka.ms/nb3hqb
+
+[capabilities.7]: http://man7.org/linux/man-pages/man7/capabilities.7.html
+[mount.2]: http://man7.org/linux/man-pages/man2/mount.2.html
+[mount.8]: http://man7.org/linux/man-pages/man8/mount.8.html
+[mount.8-filesystem-independent]: http://man7.org/linux/man-pages/man8/mount.8.html#FILESYSTEM-INDEPENDENT_MOUNT_OPTIONS
+[mount.8-filesystem-specific]: http://man7.org/linux/man-pages/man8/mount.8.html#FILESYSTEM-SPECIFIC_MOUNT_OPTIONS
+[getrlimit.2]: http://man7.org/linux/man-pages/man2/getrlimit.2.html
+[getrlimit.3]: http://pubs.opengroup.org/onlinepubs/9699919799/functions/getrlimit.html
+[stdin.3]: http://man7.org/linux/man-pages/man3/stdin.3.html
+[uts-namespace.7]: http://man7.org/linux/man-pages/man7/namespaces.7.html
+[zonecfg.1m]: http://docs.oracle.com/cd/E86824_01/html/E54764/zonecfg-1m.html
